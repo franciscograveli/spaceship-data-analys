@@ -93,7 +93,7 @@ As métricas abaixo foram calculadas no **conjunto de treino**. A acurácia de v
 | Naive Bayes | 0,755 | 0,700 | 0,605 | 0,902 | 0,788 | 0,754 | 0,76548 |
 | SVM | 0,818 | 0,818 | 0,812 | 0,824 | 0,821 | 0,802 | 0,80336 |
 | Árvore de Decisão | 0,801 | 0,783 | 0,761 | 0,840 | 0,811 | 0,788 | 0,79611 |
-| Random Forest | 0,910 | 0,910 | 0,908 | 0,911 | 0,911 | 0,804 | 0,80336 |
+| Random Forest | 0,909 | 0,910 | 0,908 | 0,911 | 0,911 | 0,804 | 0,80336 |
 | **CatBoost** | 0,884 | 0,880 | 0,876 | 0,892 | 0,886 | **0,813** | **0,80804** |
 
 ### Colocação no ranking do Kaggle

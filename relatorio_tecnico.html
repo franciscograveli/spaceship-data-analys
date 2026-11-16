@@ -1,0 +1,475 @@
+<!doctype html>
+<html lang="pt-BR">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Relatório Spaceship Titanic</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap">
+<style>
+  /* Layout: uma coluna de leitura, com os gráficos ocupando a largura toda; o CatBoost é o único elemento em cor de destaque */
+  :root {
+    --bg: #f2f4f8;
+    --surface: #ffffff;
+    --ink: #131a2b;
+    --muted: #596277;
+    --line: #dde2ec;
+    --line-strong: #b9c1d3;
+    --track: #e8ecf4;
+    --accent: #0b8a78;
+    --accent-ink: #076456;
+    --accent-soft: #d8f0ea;
+    --other: #8f99ae;
+    --c-train: #7a849b;
+    --c-cv: #3b4f9a;
+    --warn: #c8532a;
+    --font-display: 'Space Grotesk', 'Segoe UI', system-ui, sans-serif;
+    --font-body: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0d1322; --surface: #151c31; --ink: #e8ecf5; --muted: #9ba5bd; --line: #26304b; --line-strong: #3b4766;
+      --track: #1f2842; --accent: #38cdb5; --accent-ink: #5fe0cb; --accent-soft: #123a3b; --other: #66718f;
+      --c-train: #8e99b4; --c-cv: #8da2ff; --warn: #ff8e5e; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0d1322; --surface: #151c31; --ink: #e8ecf5; --muted: #9ba5bd; --line: #26304b; --line-strong: #3b4766;
+    --track: #1f2842; --accent: #38cdb5; --accent-ink: #5fe0cb; --accent-soft: #123a3b; --other: #66718f;
+    --c-train: #8e99b4; --c-cv: #8da2ff; --warn: #ff8e5e; color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 16px; line-height: 1.65;
+    padding-block: 32px 64px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  main { max-width: 960px; margin: 0 auto; display: flex; flex-direction: column; gap: 56px; }
+  h1, h2, h3, h4 { font-family: var(--font-display); text-wrap: balance; line-height: 1.15; margin: 0; }
+  h1 { font-size: clamp(2.4rem, 7vw, 4rem); font-weight: 700; letter-spacing: -0.02em; }
+  h2 { font-size: clamp(1.5rem, 3.4vw, 2rem); font-weight: 700; letter-spacing: -0.01em; }
+  h3 { font-size: 1.15rem; font-weight: 700; }
+  h4 { font-size: .78rem; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  p { margin: 0; max-width: 68ch; }
+  a { color: var(--accent-ink); }
+  code { font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; font-size: .9em; background: var(--track); padding: 1px 6px; border-radius: 4px; }
+  section { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+  .eyebrow { font-size: .8rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+  .lead { font-size: 1.15rem; color: var(--muted); max-width: 56ch; }
+  .nota { color: var(--muted); font-size: .92rem; }
+
+  /* abertura */
+  header { display: flex; flex-direction: column; gap: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+  .numeros { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-top: 12px; padding-bottom: 28px; }
+  .numero { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; display: flex; flex-direction: column; gap: 4px; }
+  .numero b { font-family: var(--font-display); font-size: 2rem; line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .numero.principal b { color: var(--accent-ink); }
+  .numero span { font-size: .88rem; color: var(--muted); }
+
+  /* passos da preparação */
+  .passos { list-style: none; counter-reset: passo; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0; border-top: 1px solid var(--line); }
+  .passos > li { counter-increment: passo; display: grid; grid-template-columns: 44px 1fr; gap: 12px; padding: 18px 0; border-bottom: 1px solid var(--line); }
+  .passos > li::before { content: counter(passo); font-family: var(--font-display); font-weight: 700; font-size: 1.5rem; color: var(--accent-ink); line-height: 1.2; }
+  .passos .corpo-passo { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  .passos ul { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 4px; }
+
+  /* tabelas */
+  .rolagem { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+  table { border-collapse: collapse; width: 100%; font-size: .93rem; font-variant-numeric: tabular-nums; }
+  th, td { padding: 10px 14px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th:first-child, td:first-child, td.esq, th.esq { text-align: left; }
+  thead th { font-size: .78rem; font-weight: 500; letter-spacing: .04em; color: var(--muted); white-space: normal; vertical-align: bottom; }
+  tbody th { font-weight: 500; }
+  tr:last-child > * { border-bottom: 0; }
+  tr.destaque > * { background: var(--accent-soft); font-weight: 600; }
+  td.kg { font-weight: 600; }
+  table.texto td, table.texto th { white-space: normal; text-align: left; }
+
+  /* gráficos de barras */
+  .grafico { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 22px 22px 18px; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+  .grafico > h3 { font-size: 1.05rem; }
+  .barras, .grupo { display: flex; flex-direction: column; gap: 6px; }
+  .barra-linha { display: grid; grid-template-columns: 150px 1fr auto; gap: 12px; align-items: center; min-height: 28px; }
+  .barra-linha .rotulo { font-size: .93rem; }
+  .barra-linha .valor { font-size: .88rem; color: var(--muted); font-variant-numeric: tabular-nums; text-align: right; }
+  .trilho { position: relative; height: 12px; background: var(--track); border-radius: 3px; }
+  .barra { display: block; height: 100%; background: var(--other); border-radius: 3px; }
+  .barra-linha.destaque .barra, .barra-linha.acima .barra { background: var(--accent); }
+  .barra-linha.destaque .rotulo, .barra-linha.destaque .valor { color: var(--accent-ink); font-weight: 600; }
+  .barra-linha.destaque-erro .barra { background: var(--warn); }
+  .barra-linha.destaque-erro .rotulo, .barra-linha.destaque-erro .valor { color: var(--warn); font-weight: 600; }
+  .meio { position: absolute; left: 50%; top: -4px; bottom: -4px; width: 1px; background: var(--ink); opacity: .55; }
+  .barras .valor { min-width: 7.5em; }
+  .barras.erros .valor { min-width: 14em; }
+  .grupos { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 26px 34px; }
+  .grupo { gap: 4px; }
+  .grupo h4 { margin-bottom: 4px; }
+  .grupo .barra-linha { grid-template-columns: 112px 1fr 40px; }
+
+  /* gráfico treino x validação x Kaggle */
+  .halteres .linha, .halteres .grade { display: grid; grid-template-columns: 150px 1fr 92px; gap: 12px; align-items: center; }
+  .halteres .linha { padding: 8px 0; }
+  .halteres .cab { padding: 0 0 6px; }
+  .halteres .rotulo { font-size: .93rem; }
+  .halteres .gap { text-align: right; font-size: .88rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .halteres .cab .gap { font-size: .72rem; line-height: 1.2; }
+  .halteres .pista { position: relative; height: 22px; }
+  .halteres .eixo { height: 16px; }
+  .eixo span { position: absolute; transform: translateX(-50%); font-size: .75rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .halteres .corpo { position: relative; }
+  .halteres .grade { position: absolute; inset: 0; pointer-events: none; }
+  .halteres .grade .pista { height: 100%; }
+  .grade i { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--line); }
+  .ligacao { position: absolute; top: 50%; height: 2px; background: var(--line-strong); transform: translateY(-50%); }
+  .ponto { position: absolute; top: 50%; display: block; }
+  .ponto.treino { width: 12px; height: 12px; border: 2px solid var(--c-train); background: var(--surface); border-radius: 50%; transform: translate(-50%, -50%); }
+  .ponto.cv { width: 10px; height: 10px; background: var(--c-cv); transform: translate(-50%, -50%) rotate(45deg); }
+  .ponto.kaggle { width: 14px; height: 14px; background: var(--accent); border-radius: 50%; border: 2px solid var(--surface); transform: translate(-50%, -50%); z-index: 2; }
+  .linha.destaque .rotulo { font-weight: 700; color: var(--accent-ink); }
+  .legenda { display: flex; flex-wrap: wrap; gap: 8px 22px; font-size: .88rem; color: var(--muted); }
+  .legenda span { display: inline-flex; align-items: center; gap: 8px; }
+  .legenda .ponto { position: relative; top: auto; left: auto; display: inline-block; }
+  .legenda .ponto.treino, .legenda .ponto.kaggle { transform: none; }
+  .legenda .ponto.cv { transform: rotate(45deg); }
+
+  /* conclusões */
+  .conclusoes { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 12px; }
+  .conclusoes li { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  @media (min-width: 900px) { .conclusoes li:last-child:nth-child(5) { grid-column: span 2; } }
+  .conclusoes li b { font-family: var(--font-display); font-size: 1.02rem; }
+  .conclusoes li span { color: var(--muted); font-size: .95rem; }
+  .arquivos { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 6px; }
+  footer { border-top: 1px solid var(--line); padding-top: 18px; color: var(--muted); font-size: .88rem; }
+
+  @media (max-width: 600px) {
+    body { font-size: 15.5px; padding-top: 24px; }
+    main { gap: 44px; }
+    .grafico { padding: 16px 14px 14px; }
+    .barra-linha { grid-template-columns: 96px 1fr auto; gap: 8px; }
+    .barras.erros .barra-linha, .barras .barra-linha { grid-template-columns: 1fr; gap: 4px; }
+    .barras .valor, .barras.erros .valor { text-align: left; min-width: 0; }
+    .grupo .barra-linha { grid-template-columns: 92px 1fr 38px; }
+    .halteres .linha, .halteres .grade { grid-template-columns: 84px 1fr 52px; gap: 8px; }
+    .halteres .rotulo { font-size: .82rem; }
+    .halteres .gap { font-size: .8rem; }
+    .passos > li { grid-template-columns: 30px 1fr; gap: 8px; }
+    .grupos { grid-template-columns: 1fr; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+
+<main>
+  <header>
+    <p class="eyebrow">Aprendizado de Máquina · IF Sudeste MG, Campus Muriaé · Trabalho Prático II</p>
+    <h1>Spaceship Titanic</h1>
+    <p class="lead">Prever quais passageiros foram transportados para outra dimensão e comparar sete algoritmos de classificação.</p>
+    <div class="numeros">
+      <div class="numero principal"><b>0,80804</b><span>melhor pontuação no Kaggle, com o CatBoost</span></div>
+      <div class="numero"><b>404º</b><span>posição entre 2.149 equipes</span></div>
+      <div class="numero"><b>7</b><span>algoritmos comparados</span></div>
+      <div class="numero"><b>29</b><span>colunas depois de tratar os dados</span></div>
+    </div>
+  </header>
+
+  <section id="problema">
+    <h2>O problema</h2>
+    <p>Na competição, a nave Spaceship Titanic bate numa anomalia e parte dos passageiros é "transportada para outra dimensão". A tarefa é prever, para cada passageiro do teste, se ele foi transportado ou não (coluna <code>Transported</code>). É um problema de <b>classificação binária</b>.</p>
+    <p>Os dados vêm em dois arquivos: <code>train.csv</code>, com 8.693 passageiros e a resposta, e <code>test.csv</code>, com 4.277 passageiros sem a resposta. O Kaggle usa o teste para dar a nota. A classe está equilibrada, com cerca de 50% de cada lado.</p>
+  </section>
+
+  <section id="eda">
+    <h2>O que a análise dos dados mostrou</h2>
+    <p>Todas as colunas têm uns 2% de valores faltando. O que mais chamou atenção foi o sono criogênico: quem está nele é transportado em 82% dos casos e não gasta nada. Crianças até 12 anos e os decks B e C também são bem mais transportados.</p>
+    <div class="grafico">
+      <h3>Porcentagem de transportados em cada grupo</h3>
+      <div class="grupos"><div class="grupo"><h4>CryoSleep</h4><div class="barra-linha acima"><div class="rotulo">Em sono criogênico</div>
+        <div class="trilho"><span class="barra" style="width:81.8%"></span><span class="meio"></span></div>
+        <div class="valor">82%</div></div><div class="barra-linha abaixo"><div class="rotulo">Acordado</div>
+        <div class="trilho"><span class="barra" style="width:32.9%"></span><span class="meio"></span></div>
+        <div class="valor">33%</div></div></div><div class="grupo"><h4>Planeta</h4><div class="barra-linha acima"><div class="rotulo">Europa</div>
+        <div class="trilho"><span class="barra" style="width:65.9%"></span><span class="meio"></span></div>
+        <div class="valor">66%</div></div><div class="barra-linha acima"><div class="rotulo">Marte</div>
+        <div class="trilho"><span class="barra" style="width:52.3%"></span><span class="meio"></span></div>
+        <div class="valor">52%</div></div><div class="barra-linha abaixo"><div class="rotulo">Terra</div>
+        <div class="trilho"><span class="barra" style="width:42.4%"></span><span class="meio"></span></div>
+        <div class="valor">42%</div></div></div><div class="grupo"><h4>Deck</h4><div class="barra-linha acima"><div class="rotulo">B</div>
+        <div class="trilho"><span class="barra" style="width:73.4%"></span><span class="meio"></span></div>
+        <div class="valor">73%</div></div><div class="barra-linha acima"><div class="rotulo">C</div>
+        <div class="trilho"><span class="barra" style="width:68.0%"></span><span class="meio"></span></div>
+        <div class="valor">68%</div></div><div class="barra-linha acima"><div class="rotulo">G</div>
+        <div class="trilho"><span class="barra" style="width:51.6%"></span><span class="meio"></span></div>
+        <div class="valor">52%</div></div><div class="barra-linha abaixo"><div class="rotulo">F</div>
+        <div class="trilho"><span class="barra" style="width:44.0%"></span><span class="meio"></span></div>
+        <div class="valor">44%</div></div><div class="barra-linha abaixo"><div class="rotulo">E</div>
+        <div class="trilho"><span class="barra" style="width:35.7%"></span><span class="meio"></span></div>
+        <div class="valor">36%</div></div></div><div class="grupo"><h4>Idade</h4><div class="barra-linha acima"><div class="rotulo">Até 12 anos</div>
+        <div class="trilho"><span class="barra" style="width:70.0%"></span><span class="meio"></span></div>
+        <div class="valor">70%</div></div><div class="barra-linha acima"><div class="rotulo">13 a 17</div>
+        <div class="trilho"><span class="barra" style="width:55.3%"></span><span class="meio"></span></div>
+        <div class="valor">55%</div></div><div class="barra-linha abaixo"><div class="rotulo">18 a 25</div>
+        <div class="trilho"><span class="barra" style="width:45.8%"></span><span class="meio"></span></div>
+        <div class="valor">46%</div></div><div class="barra-linha abaixo"><div class="rotulo">26 a 40</div>
+        <div class="trilho"><span class="barra" style="width:48.0%"></span><span class="meio"></span></div>
+        <div class="valor">48%</div></div></div></div>
+      <p class="nota">A linha preta marca 50%, que é a média geral. Em verde estão os grupos acima dela.</p>
+    </div>
+    <p>Os gastos são muito desiguais: a maioria gasta pouco e poucos gastam muito. Isso explica o cuidado que tivemos com os outliers. Outra descoberta importante: <b>treino e teste não têm nenhum grupo de viagem em comum</b>. Por isso a validação cruzada usa o <code>GroupKFold</code>, que mantém cada grupo inteiro numa mesma parte. Assim a validação se parece com o que acontece no teste do Kaggle.</p>
+  </section>
+
+  <section id="preparacao">
+    <h2>Como preparamos os dados</h2>
+    <p>Juntamos treino e teste numa tabela só, para aplicar exatamente o mesmo tratamento nos dois. A resposta não foi usada em nenhum tratamento.</p>
+    <ol class="passos">
+      <li><div class="corpo-passo">
+        <h3>Variáveis novas</h3>
+        <ul>
+          <li><code>Grupo</code> e <code>TamanhoGrupo</code>: vêm do <code>PassengerId</code>, cujos 4 primeiros dígitos mostram quem viaja junto.</li>
+          <li><code>Deck</code>, <code>NumCabine</code> e <code>Lado</code>: vêm da coluna <code>Cabin</code>, que tem o formato deck/número/lado.</li>
+          <li><code>GastoTotal</code>: soma dos 5 gastos.</li>
+          <li><code>GastoLuxo</code> (RoomService + Spa + VRDeck) e <code>GastoBasico</code> (FoodCourt + ShoppingMall): na análise vimos que esses dois grupos de gasto se comportam de forma diferente em relação à resposta.</li>
+        </ul>
+      </div></li>
+      <li><div class="corpo-passo">
+        <h3>Valores ausentes (NaN)</h3>
+        <p>Antes de usar a mediana ou a moda, aplicamos regras do próprio problema. Conferimos todas nos dados e valem em 100% dos casos:</p>
+        <ul>
+          <li>Quem está em CryoSleep não gasta nada, e quem gasta algo não está em CryoSleep.</li>
+          <li>Menores de 13 anos não gastam nada.</li>
+          <li>Quem viaja no mesmo grupo tem o mesmo planeta e o mesmo lado da cabine.</li>
+          <li>Os decks A, B, C e T são só de Europa, e o deck G é só da Terra.</li>
+          <li>Quem é da Terra nunca é VIP.</li>
+        </ul>
+        <p>O que sobrou foi preenchido com a <b>mediana</b> (números) ou a <b>moda</b> (categorias). No final não ficou nenhum NaN.</p>
+      </div></li>
+      <li><div class="corpo-passo">
+        <h3>Variáveis categóricas</h3>
+        <p><code>CryoSleep</code> e <code>VIP</code> viraram 1 e 0. <code>HomePlanet</code>, <code>Destination</code>, <code>Deck</code> e <code>Lado</code> viraram colunas de 0 e 1 (<i>one-hot encoding</i>).</p>
+      </div></li>
+      <li><div class="corpo-passo">
+        <h3>Outliers</h3>
+        <p>Usamos o método do <b>IQR</b> no <code>GastoTotal</code>: é outlier quem gasta mais que <code>Q3 + 8 × IQR</code>. Tiramos isso só do treino (99 passageiros, cerca de 1%). No teste não dá para tirar ninguém, porque o Kaggle espera uma previsão para cada passageiro.</p>
+        <p>Por que 8 e não o 1,5 ou o 3, que são os mais comuns? Muita gente gasta zero, então o IQR fica pequeno e os fatores menores tiram passageiros que só gastam bastante, e não são erro. Testamos com validação cruzada e o fator 3 tirava 6% das linhas e piorava a acurácia em cerca de 0,4 a 1,2 ponto.</p>
+      </div></li>
+      <li><div class="corpo-passo">
+        <h3>Padronização</h3>
+        <p>Usamos o <code>StandardScaler</code> (média 0 e desvio padrão 1). Ele importa para Regressão Logística, KNN e SVM, que dependem da escala. O ajuste é feito só no treino, e o teste recebe a mesma transformação.</p>
+      </div></li>
+      <li><div class="corpo-passo">
+        <h3>Seleção de variáveis</h3>
+        <p>Treinamos uma Random Forest só para medir a importância de cada coluna e tiramos as de importância menor que 0,2%, ficando com 26 das 29 colunas. Cortes maiores pioravam o resultado: com 0,5% a validação do CatBoost caiu de 0,813 para 0,810, e com 2% caiu para 0,796.</p>
+        <p>O CatBoost usa todas as colunas, porque na validação cruzada ele ficou igual com ou sem as 3 colunas tiradas.</p>
+      </div></li>
+    </ol>
+  </section>
+
+  <section id="modelos">
+    <h2>Modelos e otimização de hiperparâmetros</h2>
+    <p>Para cada modelo usamos o <code>GridSearchCV</code> com validação cruzada de 5 partes (<code>GroupKFold</code>), escolhendo pela acurácia.</p>
+    <div class="rolagem">
+      <table class="texto">
+        <thead><tr><th class="esq" scope="col">Modelo</th><th class="esq" scope="col">Parâmetros testados</th><th class="esq" scope="col">Melhor</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">Regressão Logística</th><td>C: 0,1 / 1 / 10</td><td>C = 0,1</td></tr>
+          <tr><th scope="row">KNN</th><td>vizinhos: 5 / 11 / 21</td><td>11</td></tr>
+          <tr><th scope="row">Naive Bayes</th><td>var_smoothing: 1e-9 / 1e-6 / 1e-3</td><td>1e-9</td></tr>
+          <tr><th scope="row">SVM</th><td>C: 0,5 / 1 / 5</td><td>C = 1</td></tr>
+          <tr><th scope="row">Árvore de Decisão</th><td>profundidade: 3 / 5 / 7 / 10</td><td>5</td></tr>
+          <tr><th scope="row">Random Forest</th><td>árvores: 100 / 300 · profundidade: 5 / 8 / 12</td><td>100 árvores, profundidade 12</td></tr>
+          <tr class="destaque"><th scope="row">CatBoost</th><td>profundidade: 6 / 8</td><td>6</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>O algoritmo extra: CatBoost</h3>
+    <p>O CatBoost é um algoritmo de <i>gradient boosting</i>: ele treina várias árvores <b>uma depois da outra</b>, e cada árvore nova tenta corrigir os erros das anteriores. Na Random Forest, ao contrário, as árvores são treinadas separadas e se faz a média delas.</p>
+    <p>Ele tem duas diferenças em relação a outros métodos de boosting. Usa <b>árvores simétricas</b> (todos os nós de um mesmo nível fazem a mesma pergunta), o que ajuda a evitar que o modelo decore o treino. E usa o <i>ordered boosting</i>, que reduz o sobreajuste em bases pequenas como a nossa.</p>
+    <p class="nota"><b>Referência:</b> Prokhorenkova, L.; Gusev, G.; Vorobev, A.; Dorogush, A. V.; Gulin, A. <i>CatBoost: unbiased boosting with categorical features</i>. NeurIPS 2018. <a href="https://arxiv.org/abs/1706.09516" target="_blank" rel="noopener">arxiv.org/abs/1706.09516</a></p>
+    <p><b>Por que CatBoost e não XGBoost?</b> Começamos com o XGBoost (Chen e Guestrin, KDD 2016), que fez 0,80476 no Kaggle. Depois de criarmos as variáveis de gasto de luxo e básico, o CatBoost deu uma pontuação melhor (0,80804) e ficou melhor também na validação cruzada, então ele ficou como algoritmo extra.</p>
+  </section>
+
+  <section id="resultados">
+    <h2>Resultados</h2>
+    <p>As métricas da tabela foram calculadas no <b>conjunto de treino</b>. A acurácia de validação cruzada mostra como o modelo se sai em dados que ele não viu. A pontuação do Kaggle é a do conjunto de teste.</p>
+    <div class="rolagem"><table class="resultados"><thead><tr><th scope="col">Modelo</th><th scope="col">Acurácia (treino)</th><th scope="col">Precisão</th><th scope="col">Especificidade</th><th scope="col">Recall</th><th scope="col">F1</th><th scope="col">Acurácia (valid. cruzada)</th><th scope="col">Kaggle</th></tr></thead><tbody><tr class="destaque"><th scope="row">CatBoost</th><td>0,884</td><td>0,880</td>
+    <td>0,876</td><td>0,892</td><td>0,886</td>
+    <td>0,813</td><td class="kg">0,80804</td></tr><tr><th scope="row">SVM</th><td>0,818</td><td>0,818</td>
+    <td>0,812</td><td>0,824</td><td>0,821</td>
+    <td>0,802</td><td class="kg">0,80336</td></tr><tr><th scope="row">Random Forest</th><td>0,909</td><td>0,910</td>
+    <td>0,908</td><td>0,911</td><td>0,911</td>
+    <td>0,804</td><td class="kg">0,80336</td></tr><tr><th scope="row">Árvore de Decisão</th><td>0,801</td><td>0,783</td>
+    <td>0,761</td><td>0,840</td><td>0,811</td>
+    <td>0,788</td><td class="kg">0,79611</td></tr><tr><th scope="row">Regressão Logística</th><td>0,788</td><td>0,780</td>
+    <td>0,766</td><td>0,809</td><td>0,794</td>
+    <td>0,786</td><td class="kg">0,79261</td></tr><tr><th scope="row">KNN</th><td>0,829</td><td>0,843</td>
+    <td>0,845</td><td>0,814</td><td>0,828</td>
+    <td>0,786</td><td class="kg">0,78816</td></tr><tr><th scope="row">Naive Bayes</th><td>0,755</td><td>0,700</td>
+    <td>0,605</td><td>0,902</td><td>0,788</td>
+    <td>0,754</td><td class="kg">0,76548</td></tr></tbody></table></div>
+
+    <div class="grafico">
+      <h3>Treino, validação cruzada e Kaggle</h3>
+      
+<div class="halteres" role="img" aria-label="Acurácia de treino, de validação cruzada e do Kaggle para cada modelo">
+  <div class="linha cab">
+    <div class="rotulo"></div>
+    <div class="pista eixo"><span style="left:5.56%">0,75</span><span style="left:33.33%">0,80</span><span style="left:61.11%">0,85</span><span style="left:88.89%">0,90</span></div>
+    <div class="gap">treino − valid.</div>
+  </div>
+  <div class="corpo"><div class="grade"><div class="rotulo"></div><div class="pista"><i style="left:5.56%"></i><i style="left:33.33%"></i><i style="left:61.11%"></i><i style="left:88.89%"></i></div><div class="gap"></div></div>
+    <div class="linha destaque">
+      <div class="rotulo">CatBoost</div>
+      <div class="pista">
+        <span class="ligacao" style="left:37.80%;width:42.13%"></span>
+        <span class="ponto treino" style="left:79.93%" title="Treino: 0,884"></span>
+        <span class="ponto cv" style="left:40.75%" title="Validação cruzada: 0,813"></span>
+        <span class="ponto kaggle" style="left:37.80%" title="Kaggle: 0,80804"></span>
+      </div>
+      <div class="gap">0,071</div>
+    </div>
+    <div class="linha">
+      <div class="rotulo">SVM</div>
+      <div class="pista">
+        <span class="ligacao" style="left:34.55%;width:8.99%"></span>
+        <span class="ponto treino" style="left:43.53%" title="Treino: 0,818"></span>
+        <span class="ponto cv" style="left:34.55%" title="Validação cruzada: 0,802"></span>
+        <span class="ponto kaggle" style="left:35.20%" title="Kaggle: 0,80336"></span>
+      </div>
+      <div class="gap">0,016</div>
+    </div>
+    <div class="linha">
+      <div class="rotulo">Random Forest</div>
+      <div class="pista">
+        <span class="ligacao" style="left:35.20%;width:58.95%"></span>
+        <span class="ponto treino" style="left:94.15%" title="Treino: 0,909"></span>
+        <span class="ponto cv" style="left:35.78%" title="Validação cruzada: 0,804"></span>
+        <span class="ponto kaggle" style="left:35.20%" title="Kaggle: 0,80336"></span>
+      </div>
+      <div class="gap">0,105</div>
+    </div>
+    <div class="linha">
+      <div class="rotulo">Árvore de Decisão</div>
+      <div class="pista">
+        <span class="ligacao" style="left:26.79%;width:7.24%"></span>
+        <span class="ponto treino" style="left:34.03%" title="Treino: 0,801"></span>
+        <span class="ponto cv" style="left:26.79%" title="Validação cruzada: 0,788"></span>
+        <span class="ponto kaggle" style="left:31.17%" title="Kaggle: 0,79611"></span>
+      </div>
+      <div class="gap">0,013</div>
+    </div>
+    <div class="linha">
+      <div class="rotulo">Regressão Logística</div>
+      <div class="pista">
+        <span class="ligacao" style="left:25.69%;width:3.54%"></span>
+        <span class="ponto treino" style="left:26.66%" title="Treino: 0,788"></span>
+        <span class="ponto cv" style="left:25.69%" title="Validação cruzada: 0,786"></span>
+        <span class="ponto kaggle" style="left:29.23%" title="Kaggle: 0,79261"></span>
+      </div>
+      <div class="gap">0,002</div>
+    </div>
+    <div class="linha">
+      <div class="rotulo">KNN</div>
+      <div class="pista">
+        <span class="ligacao" style="left:25.37%;width:24.11%"></span>
+        <span class="ponto treino" style="left:49.48%" title="Treino: 0,829"></span>
+        <span class="ponto cv" style="left:25.37%" title="Validação cruzada: 0,786"></span>
+        <span class="ponto kaggle" style="left:26.76%" title="Kaggle: 0,78816"></span>
+      </div>
+      <div class="gap">0,043</div>
+    </div>
+    <div class="linha">
+      <div class="rotulo">Naive Bayes</div>
+      <div class="pista">
+        <span class="ligacao" style="left:7.53%;width:6.63%"></span>
+        <span class="ponto treino" style="left:8.30%" title="Treino: 0,755"></span>
+        <span class="ponto cv" style="left:7.53%" title="Validação cruzada: 0,754"></span>
+        <span class="ponto kaggle" style="left:14.16%" title="Kaggle: 0,76548"></span>
+      </div>
+      <div class="gap">0,001</div>
+    </div></div>
+</div>
+<div class="legenda">
+  <span><i class="ponto treino"></i> Treino</span>
+  <span><i class="ponto cv"></i> Validação cruzada</span>
+  <span><i class="ponto kaggle"></i> Kaggle (teste)</span>
+</div>
+      <p class="nota">Quando o ponto do treino está bem longe dos outros dois, o modelo decorou o treino. Isso aparece na Random Forest, no KNN e também no CatBoost, que mesmo assim foi o melhor nos dados que não tinha visto.</p>
+    </div>
+
+    <div class="grafico">
+      <h3>Colocação no ranking do Kaggle</h3>
+      <div class="barras" role="img" aria-label="Posição de cada modelo no ranking, de 2149 equipes">
+    <div class="barra-linha destaque">
+      <div class="rotulo">CatBoost</div>
+      <div class="trilho"><span class="barra" style="width:18.80%"></span></div>
+      <div class="valor">404 (oficial)</div>
+    </div>
+    <div class="barra-linha">
+      <div class="rotulo">SVM</div>
+      <div class="trilho"><span class="barra" style="width:42.76%"></span></div>
+      <div class="valor">~919</div>
+    </div>
+    <div class="barra-linha">
+      <div class="rotulo">Random Forest</div>
+      <div class="trilho"><span class="barra" style="width:42.76%"></span></div>
+      <div class="valor">~919</div>
+    </div>
+    <div class="barra-linha">
+      <div class="rotulo">Árvore de Decisão</div>
+      <div class="trilho"><span class="barra" style="width:68.78%"></span></div>
+      <div class="valor">~1.478</div>
+    </div>
+    <div class="barra-linha">
+      <div class="rotulo">Regressão Logística</div>
+      <div class="trilho"><span class="barra" style="width:74.41%"></span></div>
+      <div class="valor">~1.599</div>
+    </div>
+    <div class="barra-linha">
+      <div class="rotulo">KNN</div>
+      <div class="trilho"><span class="barra" style="width:83.95%"></span></div>
+      <div class="valor">~1.804</div>
+    </div>
+    <div class="barra-linha">
+      <div class="rotulo">Naive Bayes</div>
+      <div class="trilho"><span class="barra" style="width:91.39%"></span></div>
+      <div class="valor">~1.964</div>
+    </div></div>
+      <p class="nota">O ranking tinha 2.149 equipes e quanto menor a barra, melhor. O Kaggle só mostra a melhor posição da equipe, então as demais são a posição que cada pontuação teria hoje. São aproximadas, porque no empate o Kaggle coloca na frente quem enviou antes.</p>
+    </div>
+  </section>
+
+  <section id="conclusoes">
+    <h2>O que a gente concluiu</h2>
+    <ul class="conclusoes">
+      <li><b>O CatBoost foi o melhor</b><span>Tanto na validação cruzada (0,813) quanto no Kaggle (0,80804).</span></li>
+      <li><b>Random Forest e KNN decoram o treino</b><span>A Random Forest acerta 91% no treino, mas só 80% na validação. O KNN passa de 83% para 79%. Por isso a acurácia no treino sozinha engana.</span></li>
+      <li><b>O Naive Bayes foi o pior</b><span>Ele supõe que as colunas são independentes, e aqui elas não são. Por exemplo, CryoSleep e os gastos andam juntos.</span></li>
+      <li><b>Quase nada passou do ruído</b><span>Testamos log dos gastos, sobrenome, região da cabine, médias do grupo e votação entre modelos. Quase tudo ficou dentro de 0,1 ponto, e juntar modelos até piorou. Só separar o gasto em luxo e básico ajudou um pouco.</span></li>
+      <li><b>A pontuação do Kaggle tem ruído</b><span>Com 4.277 linhas no teste, ela varia cerca de ±0,006 só por sorte. Diferenças pequenas entre envios (como 0,805 e 0,808) não querem dizer muito. Na busca do CatBoost, a profundidade 4 deu validação parecida com a 6 (0,815 e 0,813), dentro desse ruído.</span></li>
+    </ul>
+    <div class="grafico">
+      <h3>Onde o modelo mais erra</h3>
+      <div class="barras erros" role="img" aria-label="Quantidade de erros por planeta"><div class="barra-linha destaque-erro"><div class="rotulo">Terra</div>
+    <div class="trilho"><span class="barra" style="width:100.0%"></span></div>
+    <div class="valor">1.186 erros · 74% de acerto</div></div><div class="barra-linha "><div class="rotulo">Marte</div>
+    <div class="trilho"><span class="barra" style="width:18.0%"></span></div>
+    <div class="valor">214 erros · 88% de acerto</div></div><div class="barra-linha "><div class="rotulo">Europa</div>
+    <div class="trilho"><span class="barra" style="width:13.4%"></span></div>
+    <div class="valor">159 erros · 92% de acerto</div></div></div>
+      <p class="nota">Cerca de 74% dos erros (1.186 de 1.602) são passageiros da Terra, principalmente os que estão em sono criogênico e as crianças. Nas colunas que temos não há nada que separe bem esses casos. Os erros somam 1.602 na validação cruzada do CatBoost, e 43 deles são de passageiros sem planeta informado.</p>
+    </div>
+  </section>
+
+  <section id="arquivos">
+    <h2>Arquivos entregues</h2>
+    <ul class="arquivos">
+      <li><code>spaceship_titanic.ipynb</code>: código completo, que roda no Google Colab.</li>
+      <li><code>submissoes/</code>: um arquivo <code>.csv</code> por modelo, enviado ao Kaggle.</li>
+      <li><code>quadro_comparativo.csv</code>: o quadro comparativo.</li>
+      <li>Prints do Kaggle com a colocação de cada método.</li>
+    </ul>
+  </section>
+
+  <footer>Competição: <a href="https://www.kaggle.com/competitions/spaceship-titanic" target="_blank" rel="noopener">Spaceship Titanic no Kaggle</a></footer>
+</main>
+
+</html>
