@@ -216,6 +216,51 @@
     <p>Os gastos são muito desiguais: a maioria gasta pouco e poucos gastam muito. Isso explica o cuidado que tivemos com os outliers. Outra descoberta importante: <b>treino e teste não têm nenhum grupo de viagem em comum</b>. Por isso a validação cruzada usa o <code>GroupKFold</code>, que mantém cada grupo inteiro numa mesma parte. Assim a validação se parece com o que acontece no teste do Kaggle.</p>
   </section>
 
+  <section id="bebes">
+    <h2>Olhando o teste inteiro: os "bebês" e quem não gasta</h2>
+    <p>Conferimos as regras e os padrões em todas as 12.970 linhas (treino e teste juntos), e não só nas primeiras. O professor comentou que passageiros que não gastam e <b>não estão em CryoSleep</b> poderiam ser fetos ou recém-nascidos. Os dados confirmam isso.</p>
+    <div class="grafico">
+      <h3>Quantos passageiros têm cada idade</h3>
+      <div class="barras" role="img" aria-label="Quantidade de passageiros com idade de 0 a 6 anos"><div class="barra-linha destaque-erro"><div class="rotulo">Idade 0</div>
+    <div class="trilho"><span class="barra" style="width:100.0%"></span></div><div class="valor">260</div></div><div class="barra-linha "><div class="rotulo">Idade 1</div>
+    <div class="trilho"><span class="barra" style="width:36.2%"></span></div><div class="valor">94</div></div><div class="barra-linha "><div class="rotulo">Idade 2</div>
+    <div class="trilho"><span class="barra" style="width:42.3%"></span></div><div class="valor">110</div></div><div class="barra-linha "><div class="rotulo">Idade 3</div>
+    <div class="trilho"><span class="barra" style="width:41.9%"></span></div><div class="valor">109</div></div><div class="barra-linha "><div class="rotulo">Idade 4</div>
+    <div class="trilho"><span class="barra" style="width:35.0%"></span></div><div class="valor">91</div></div><div class="barra-linha "><div class="rotulo">Idade 5</div>
+    <div class="trilho"><span class="barra" style="width:20.4%"></span></div><div class="valor">53</div></div><div class="barra-linha "><div class="rotulo">Idade 6</div>
+    <div class="trilho"><span class="barra" style="width:25.0%"></span></div><div class="valor">65</div></div></div>
+      <p class="nota">A idade 0 tem quase o triplo da idade 1. As contagens não caem aos poucos, então a idade 0 parece ser um marcador de recém-nascido.</p>
+    </div>
+    <ul class="conclusoes">
+      <li><b>Nenhum gasta</b><span>Os 260 passageiros de idade 0 têm gasto zero, e 59% deles não estão em CryoSleep.</span></li>
+      <li><b>Viajam com a família</b><span>97% estão em grupo de 2 ou mais. 86% têm um adulto no grupo, 66% dividem a cabine com um adulto e 72% têm o sobrenome de um adulto do grupo.</span></li>
+      <li><b>São quase sempre transportados</b><span>82% no treino, estejam ou não em CryoSleep. Crianças de 1 a 12 anos ficam entre 64% e 70%.</span></li>
+    </ul>
+    <div class="grafico">
+      <h3>Transportados entre quem não gasta e não está em CryoSleep (treino)</h3>
+      <div class="barras" role="img" aria-label="Taxa de transportados por tipo de passageiro"><div class="barra-linha acima"><div class="rotulo">Idade 0</div>
+    <div class="trilho"><span class="barra" style="width:81.1%"></span><span class="meio"></span></div><div class="valor">81% · 95 pass.</div></div><div class="barra-linha acima"><div class="rotulo">Idade 1 a 12</div>
+    <div class="trilho"><span class="barra" style="width:62.8%"></span><span class="meio"></span></div><div class="valor">63% · 274 pass.</div></div><div class="barra-linha abaixo"><div class="rotulo">13 anos ou mais</div>
+    <div class="trilho"><span class="barra" style="width:36.2%"></span><span class="meio"></span></div><div class="valor">36% · 94 pass.</div></div></div>
+      <p class="nota">São 470 passageiros no treino e 197 no teste. 78% são crianças com menos de 13 anos, e 20% têm idade 0. Os adultos nesse grupo são raros (94 no treino) e só 36% deles foram transportados. A linha preta marca 50%.</p>
+    </div>
+    <p>A <b>idade ausente</b> aparece em 270 passageiros, mas só 13 deles não gastam e estão fora do CryoSleep, então o problema é pequeno. Também conferimos as regras de preenchimento nas 12.970 linhas, e nenhuma teve exceção:</p>
+    <div class="rolagem">
+      <table class="texto">
+        <thead><tr><th class="esq" scope="col">Regra</th><th scope="col">Exceções</th></tr></thead>
+        <tbody>
+          <tr><td>Quem está em CryoSleep nunca gasta</td><td>0</td></tr>
+          <tr><td>Menores de 13 anos nunca gastam (aos 13 já gastam, 116 casos)</td><td>0</td></tr>
+          <tr><td>Menores de 18 anos nunca são VIP</td><td>0</td></tr>
+          <tr><td>Quem é da Terra nunca é VIP</td><td>0</td></tr>
+          <tr><td>Decks A, B, C e T são só de Europa, e o G é só da Terra</td><td>0</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p><b>O que fizemos com isso:</b> nada mudou no modelo. Testamos marcar a idade 0 e a idade ausente (+0,0004 de acurácia) e preencher a idade ausente com uma regra (+0,0008). As duas diferenças ficaram dentro do ruído, porque o CatBoost já enxerga a idade 0 sozinho e são poucos casos.</p>
+    <p><b>Uma limitação:</b> nossa regra "sem gasto significa CryoSleep" vale para adultos (94% deles sem gasto estão em CryoSleep), mas para crianças não, pois só 48% estão. Isso afeta 30 passageiros com CryoSleep ausente e menos de 13 anos (7 no teste), então o efeito no resultado é pequeno.</p>
+  </section>
+
   <section id="preparacao">
     <h2>Como preparamos os dados</h2>
     <p>Juntamos treino e teste numa tabela só, para aplicar exatamente o mesmo tratamento nos dois. A resposta não foi usada em nenhum tratamento.</p>

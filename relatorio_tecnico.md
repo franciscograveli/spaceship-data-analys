@@ -28,13 +28,38 @@ O que descobrimos olhando os dados:
 - Os gastos são muito desiguais: a maioria gasta pouco e poucos gastam muito.
 - **Treino e teste não têm nenhum grupo de viagem em comum.** Por isso, na validação cruzada usamos `GroupKFold`, que mantém cada grupo inteiro numa mesma parte. Assim a validação se parece com o que acontece no teste do Kaggle.
 
-### 2.2 Variáveis novas
+### 2.2 Olhando o teste inteiro: os "bebês" e quem não gasta
+Conferimos as regras e os padrões em todas as 12.970 linhas (treino e teste juntos), e não só nas primeiras. O professor comentou que passageiros que não gastam e **não estão em CryoSleep** poderiam ser fetos ou recém-nascidos. Os dados confirmam isso:
+
+- **A idade 0 é diferente das outras.** Há 260 passageiros com idade 0, contra 94 com idade 1, 110 com 2 e 109 com 3. A contagem não cai aos poucos, então a idade 0 parece ser um marcador de recém-nascido.
+- **Nenhum deles gasta:** os 260 têm gasto zero.
+- **Viajam com a família:** 97% estão em grupo de 2 ou mais pessoas. 86% têm um adulto no mesmo grupo, 66% dividem a cabine com um adulto e 72% têm o mesmo sobrenome de um adulto do grupo.
+- **Muitos não estão em CryoSleep** (59%), e mesmo assim não gastam.
+- **São quase sempre transportados:** 82% no treino, estejam ou não em CryoSleep. As crianças de 1 a 12 anos ficam entre 64% e 70%, e os adultos fora do CryoSleep em 30%.
+
+Olhando só quem **não gasta e não está em CryoSleep** (470 no treino e 197 no teste): 78% são crianças com menos de 13 anos, e 20% têm idade 0. Os adultos nesse grupo são raros (94 no treino e 36 no teste) e só 36% deles foram transportados. Já a **idade ausente** aparece em 270 passageiros, mas só 13 deles não gastam e estão fora do CryoSleep, então o problema é pequeno.
+
+Também conferimos as regras de preenchimento nas 12.970 linhas, e nenhuma teve exceção:
+
+| Regra | Exceções |
+|---|---|
+| Quem está em CryoSleep nunca gasta | 0 |
+| Menores de 13 anos nunca gastam (aos 13 já gastam, 116 casos) | 0 |
+| Menores de 18 anos nunca são VIP | 0 |
+| Quem é da Terra nunca é VIP | 0 |
+| Decks A, B, C e T são só de Europa, e o G é só da Terra | 0 |
+
+**O que fizemos com isso:** nada mudou no modelo. Testamos marcar a idade 0 e a idade ausente (+0,0004 de acurácia) e preencher a idade ausente com uma regra (sem gasto e fora do CryoSleep vira criança, com gasto vira 13 anos ou mais: +0,0008). As duas diferenças ficaram dentro do ruído, porque o CatBoost já enxerga a idade 0 sozinho e são poucos casos.
+
+**Uma limitação:** nossa regra "sem gasto significa CryoSleep" vale para adultos (94% deles sem gasto estão em CryoSleep), mas para crianças não, pois só 48% estão. Isso afeta 30 passageiros com CryoSleep ausente e menos de 13 anos (7 no teste), então o efeito no resultado é pequeno.
+
+### 2.3 Variáveis novas
 - `Grupo` e `TamanhoGrupo`: vêm do `PassengerId` (os 4 primeiros dígitos mostram quem viaja junto).
 - `Deck`, `NumCabine` e `Lado`: vêm da coluna `Cabin`, que tem o formato deck/número/lado.
 - `GastoTotal`: soma dos 5 gastos.
 - `GastoLuxo` (RoomService + Spa + VRDeck) e `GastoBasico` (FoodCourt + ShoppingMall): na EDA vimos que os dois grupos de gasto se comportam de forma diferente em relação à resposta.
 
-### 2.3 Valores ausentes (NaN)
+### 2.4 Valores ausentes (NaN)
 Antes de usar a mediana ou a moda, usamos **regras do próprio problema**, que conferimos nos dados e valem em 100% dos casos:
 - Quem está em CryoSleep não gasta nada, e quem gasta algo não está em CryoSleep.
 - Menores de 13 anos não gastam nada.
@@ -44,18 +69,18 @@ Antes de usar a mediana ou a moda, usamos **regras do próprio problema**, que c
 
 O que sobrou foi preenchido com a **mediana** (números) ou a **moda** (categorias). No final não ficou nenhum NaN.
 
-### 2.4 Variáveis categóricas
+### 2.5 Variáveis categóricas
 `CryoSleep` e `VIP` viraram 1 e 0. `HomePlanet`, `Destination`, `Deck` e `Lado` viraram colunas de 0 e 1 (*one-hot encoding*).
 
-### 2.5 Outliers
+### 2.6 Outliers
 Usamos o método do **IQR** no `GastoTotal`: consideramos outlier quem gasta mais que `Q3 + 8 × IQR`. Só tiramos isso do **treino** (removemos 99 passageiros, cerca de 1%). No teste não dá para tirar ninguém, pois o Kaggle espera uma previsão para cada passageiro.
 
 Por que o fator 8 e não o 1,5 ou o 3, que são os mais comuns? Muita gente gasta zero, então o IQR fica pequeno e os fatores menores acabam tirando passageiros que só gastam bastante, e não são erro. Testamos com validação cruzada e o fator 3 tirava 6% das linhas e **piorava** a acurácia em cerca de 0,4 a 1,2 ponto.
 
-### 2.6 Padronização
+### 2.7 Padronização
 Usamos o `StandardScaler` (média 0 e desvio padrão 1). Ele importa para Regressão Logística, KNN e SVM, que dependem da escala. O ajuste é feito só no treino, e o teste recebe a mesma transformação.
 
-### 2.7 Seleção de variáveis
+### 2.8 Seleção de variáveis
 Treinamos uma Random Forest só para medir a importância de cada coluna e tiramos as de importância menor que 0,2% (ficamos com 26 das 29 colunas). Cortes maiores pioravam o resultado: com 0,5% a validação do CatBoost caiu de 0,813 para 0,810, e com 2% caiu para 0,796.
 Para o CatBoost usamos todas as colunas, porque na validação cruzada ele ficou igual com ou sem as 3 colunas tiradas.
 
