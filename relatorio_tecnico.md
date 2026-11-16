@@ -138,7 +138,60 @@ O Kaggle só mostra a melhor posição da equipe, então as demais são a posiç
 
 *(Os prints do Kaggle com a colocação de cada método estão anexados no final.)*
 
-## 5. O que a gente concluiu
+## 5. O que os dados mostram: quem tem mais chance de ser transportado
+
+Esta parte responde ao problema em si, olhando os 8.693 passageiros do treino (a taxa geral de transportados é de 50,4%). Os números são taxas observadas e mostram **associação**, não causa. Por exemplo, gastar muito não faz alguém ser deixado para trás: o gasto aparece junto com outras características, como estar acordado durante a viagem.
+
+### 5.1 O fator que mais pesa: o sono criogênico e o gasto
+- **Quem estava em CryoSleep foi transportado em 81,8% dos casos**, contra 32,9% de quem estava acordado. É a maior diferença que encontramos (correlação de +0,47 com o alvo).
+- **Quem não gastou nada a bordo foi transportado em 78,6%.** Quem gastou algo ficou entre 27% e 34%, e o valor gasto quase não muda isso: não adianta gastar 500 ou 5.000, o que separa os grupos é gastar ou não gastar.
+- **Os gastos de luxo pesam mais.** Quem gastou em RoomService, Spa ou VRDeck foi transportado em apenas 28,4% (contra 77,9% de quem não gastou nada nesses três). No FoodCourt e no ShoppingMall a diferença existe, mas é menor (32,1% de quem gastou contra 69,5% de quem não gastou). Foi por isso que criamos `GastoLuxo` e `GastoBasico`.
+- Os dois fatores andam juntos, porque quem está em CryoSleep fica sem poder gastar. Entre quem estava **acordado**, quem não gastou nada ainda foi transportado em 61,6%, contra 29,9% de quem gastou.
+
+### 5.2 O planeta de origem
+| Planeta de origem | Passageiros | Transportados |
+|---|---|---|
+| Europa | 2.131 | 65,9% |
+| Marte | 1.759 | 52,3% |
+| Terra | 4.602 | 42,4% |
+
+- **Passageiros de Europa tiveram mais chance** de ser transportados. Eles também gastam muito mais (média de 3.452 por pessoa, contra 1.051 de Marte e 673 da Terra) e ficam nos decks B e C, que são os mais transportados.
+- **Passageiros da Terra tiveram menos chance**, e são quase metade dos passageiros (53%).
+- O CryoSleep funciona de forma diferente em cada planeta: dormindo, **99% dos europeus e 91% dos marcianos foram transportados, mas só 66% dos terráqueos**. Acordados, ficam em 40% (Europa), 32% (Terra) e 28% (Marte). Os terráqueos em CryoSleep são o caso mais difícil para o modelo, e foi onde ele mais errou (cerca de 74% dos erros são passageiros da Terra).
+
+### 5.3 O destino da viagem
+- Quem ia para **55 Cancri e** foi transportado em 61,0%, quem ia para PSO J318.5-22 em 50,4% e quem ia para **TRAPPIST-1e** em 47,1%.
+- Boa parte disso é o planeta de origem: 69% dos terráqueos vão para TRAPPIST-1e (o destino com mais passageiros, 5.915), e 42% dos europeus vão para 55 Cancri e. Dentro de cada planeta a diferença entre destinos continua existindo, mas é menor (na Terra, por exemplo, vai de 39% a 50%).
+
+### 5.4 A idade
+| Faixa de idade | Passageiros | Transportados |
+|---|---|---|
+| 0 anos | 178 | 80,9% |
+| 1 a 12 anos | 628 | 66,9% |
+| 13 a 17 anos | 739 | 55,3% |
+| 18 a 25 anos | 2.351 | 45,8% |
+| 26 a 40 anos | 2.887 | 48,0% |
+| 41 a 60 anos | 1.511 | 49,5% |
+| Mais de 60 anos | 220 | 47,3% |
+
+- **Quanto mais novo, mais chance de ser transportado.** Os bebês (idade 0) e as crianças até 12 anos ficam bem acima da média.
+- A partir dos 18 anos a taxa fica parecida em todas as faixas (46% a 50%), então a idade, depois de adulto, diz pouco.
+- Também foram os mais transportados os passageiros que **não gastaram e não estavam em CryoSleep**, em geral crianças (ver seção 2.2).
+
+### 5.5 A cabine: deck e lado
+- **Decks B (73,4%) e C (68,0%) tiveram a maior chance**, e são decks de Europa. Os decks **E (35,7%)**, D (43,3%) e F (44,0%) tiveram as menores. O G, com 2.559 passageiros, fica na média (51,6%).
+- **O lado da nave importa um pouco:** o lado S (estibordo) teve 55,5% e o lado P (bombordo) teve 45,1%. Ficamos sem explicação para isso, mas é uma diferença consistente, com mais de 4 mil passageiros em cada lado.
+
+### 5.6 Quem viaja em grupo e os VIPs
+- **Quem viaja sozinho tem menos chance** (45,2%). Em grupos de 2, 3 e 4 pessoas a taxa sobe (53,8%, 59,3% e 64,1%).
+- **Os VIPs foram transportados menos (38,2%)** que os não VIPs (50,6%), mas são só 199 passageiros (2%), e o resultado é parte do efeito do gasto, pois VIPs gastam muito.
+
+### 5.7 Resumo
+O passageiro com **maior chance** de ser transportado é o que está em CryoSleep, não gastou nada e é de **Europa** (principalmente nos decks B e C), ou é bebê ou criança. O de **menor chance** é o adulto da **Terra**, acordado, que gastou em RoomService, Spa ou VRDeck, viajando sozinho e nos decks E, D ou F.
+
+Os padrões são fortes, mas não separam todos os casos: por exemplo, terráqueos em CryoSleep ficam em 66% e adultos acordados que gastam ficam perto de 30%. Por isso a acurácia dos nossos modelos chega a cerca de 81% e não passa muito disso: as colunas que temos não explicam o resto.
+
+## 6. O que a gente concluiu sobre os modelos
 
 - **O CatBoost foi o melhor**, tanto na validação cruzada (0,813) quanto no Kaggle (0,80804).
 - **A Random Forest e o KNN decoram o treino.** A Random Forest acerta 91% no treino, mas só 80% na validação. O KNN passa de 82% para 78%. Por isso a acurácia no treino sozinha engana, e a validação cruzada é a medida mais confiável.
@@ -147,7 +200,7 @@ O Kaggle só mostra a melhor posição da equipe, então as demais são a posiç
 - **Onde o modelo mais erra:** cerca de 74% dos erros são passageiros da Terra, principalmente os que estão em sono criogênico e as crianças. Nas colunas que temos não há nada que separe bem esses casos.
 - **A pontuação do Kaggle tem ruído.** Com 4.277 linhas no teste, a pontuação varia cerca de ±0,006 só por sorte. Por isso, diferenças pequenas entre envios (como 0,805 e 0,808) não querem dizer muito. Na busca de profundidade do CatBoost, a profundidade 4 deu uma validação parecida com a 6 (0,815 e 0,813), e a diferença está dentro desse ruído.
 
-## 6. Arquivos entregues
+## 7. Arquivos entregues
 - `spaceship_titanic.ipynb`: código completo (roda no Google Colab).
 - `submissoes/`: um arquivo `.csv` por modelo, enviado ao Kaggle.
 - `quadro_comparativo.csv`: o quadro comparativo.
