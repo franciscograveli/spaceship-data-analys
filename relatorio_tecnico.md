@@ -60,12 +60,14 @@ Também conferimos as regras de preenchimento nas 12.970 linhas, e nenhuma teve 
 - `GastoLuxo` (RoomService + Spa + VRDeck) e `GastoBasico` (FoodCourt + ShoppingMall): na EDA vimos que os dois grupos de gasto se comportam de forma diferente em relação à resposta.
 
 ### 2.4 Valores ausentes (NaN)
-Antes de usar a mediana ou a moda, usamos **regras do próprio problema**, que conferimos nos dados e valem em 100% dos casos:
+Antes de usar a mediana ou a moda, usamos **regras do próprio problema**, que conferimos em todas as 12.970 linhas (treino e teste juntos) e não tiveram nenhuma exceção:
 - Quem está em CryoSleep não gasta nada, e quem gasta algo não está em CryoSleep.
 - Menores de 13 anos não gastam nada.
 - Quem viaja no mesmo grupo tem o mesmo planeta e o mesmo lado da cabine.
 - Os decks A, B, C e T são só de Europa, e o deck G é só da Terra.
 - Quem é da Terra nunca é VIP.
+
+Uma ressalva: o grupo **não** garante o mesmo deck nem o mesmo número de cabine (em cerca de 32% dos grupos eles mudam). Mesmo assim, quando faltam, usamos o deck e a cabine de um colega de grupo como estimativa. Testamos nos passageiros que têm essas informações e essa estimativa acerta o deck 72% das vezes, contra 26% se usássemos o deck mais comum.
 
 O que sobrou foi preenchido com a **mediana** (números) ou a **moda** (categorias). No final não ficou nenhum NaN.
 

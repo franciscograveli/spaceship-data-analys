@@ -276,7 +276,7 @@
       </div></li>
       <li><div class="corpo-passo">
         <h3>Valores ausentes (NaN)</h3>
-        <p>Antes de usar a mediana ou a moda, aplicamos regras do próprio problema. Conferimos todas nos dados e valem em 100% dos casos:</p>
+        <p>Antes de usar a mediana ou a moda, aplicamos regras do próprio problema. Conferimos todas em todas as 12.970 linhas (treino e teste juntos) e nenhuma teve exceção:</p>
         <ul>
           <li>Quem está em CryoSleep não gasta nada, e quem gasta algo não está em CryoSleep.</li>
           <li>Menores de 13 anos não gastam nada.</li>
@@ -284,6 +284,7 @@
           <li>Os decks A, B, C e T são só de Europa, e o deck G é só da Terra.</li>
           <li>Quem é da Terra nunca é VIP.</li>
         </ul>
+        <p>Uma ressalva: o grupo <b>não</b> garante o mesmo deck nem o mesmo número de cabine (em cerca de 32% dos grupos eles mudam). Mesmo assim, quando faltam, usamos o deck e a cabine de um colega de grupo como estimativa. Testamos nos passageiros que têm essas informações e essa estimativa acerta o deck 72% das vezes, contra 26% se usássemos o deck mais comum.</p>
         <p>O que sobrou foi preenchido com a <b>mediana</b> (números) ou a <b>moda</b> (categorias). No final não ficou nenhum NaN.</p>
       </div></li>
       <li><div class="corpo-passo">
